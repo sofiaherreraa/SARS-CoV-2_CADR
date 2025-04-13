@@ -262,8 +262,8 @@ colors <- (colorRampPalette(c("lightgrey", "#666666","#bab0ab",'peachpuff3',"#9c
 p$pango_lineage_adjusted <- factor(p$pango_lineage_adjusted, levels = unique(p$pango_lineage_adjusted))
 ```
 
+## Create Figure 3. Relative percentages of SARS-CoV-2 lineages circulating in Central America and Dominican Republic from February 2020 to January 2023. Lineages with a frequency exceding 120 occurrences (n>120) per month were selected.
 ```R
-## Figure 3. Relative percentages of SARS-CoV-2 lineages circulating in Central America and Dominican Republic from February 2020 to January 2023. Lineages with a frequency exceding 120 occurrences (n>120) per month were selected.
 Q<-p%>%
   ggplot(aes(x=year_month, y=percentage,fill=pango_lineage_adjusted, label=scales::percent(abs(percentage)))) +
   geom_col() +
