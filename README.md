@@ -24,8 +24,10 @@ library(colorspace)
 library(tibble)
 library(tidyr)
 ```
-## Update this path to their desired location
+## Create Figure 1. Timeline of processes implemented to strengthen genomic surveillance of SARS-CoV-2 in Central America and the Dominican Republic.
+
 ```R
+# Update this path to their desired location
 add_path = "/Users/yourpath"
 
 #Define the activities and dates
@@ -89,7 +91,10 @@ timeline<-ggplot(dataset, aes(x = Start, xend = End + 2, y = Activity, yend = Ac
 
 timeline
 ggsave(paste0(add_path, "/Figure 1.tiff"), width=16.1, height=5.74)
+```
 
+## Create Figure 2.  Individual SARS-CoV-2 sequences obtained by country in Central America and Do-minican Republic from February 2020 to January 2023. The top 14 most prevalent lineages were individually labeled, and all the remaining lineages were labeled as other.
+```R
 #Load data for Figure 2 and 3
 data0 <- read_tsv(paste0(add_path, "/centralamerica.tsv"))
 
@@ -127,13 +132,10 @@ df_count[order(df_count$Count),]
 #Add Country Count on the left side of the table
 df_central_america = df_central_america %>% 
   left_join(df_count, by = c("country" = "country"))
-```
-## Creating data set with Pangolin Lineage Count - Ascending
-```R
+
+#Creating data set with Pangolin Lineage Count - Ascending
 pangolin_count<-as.data.frame(table(df_central_america$pango_lineage))
 pangolin_count<-pangolin_count[order(pangolin_count$Freq), ]
-
-#Figure 2. Individual SARS-CoV-2 sequences obtained by country in Central America and Dominican Republic from February 2020 to January 2023.  
 panelopas<-ggplot(data=df_central_america)  + theme_classic()+
   geom_segment(aes(x=as.Date("2020-02-01"), y=reorder(country,Count), xend=as.Date("2023-02-01"), yend=country, group=country), colour="grey80", size=5) +
   geom_point(aes(x=days, fill='Other',y=reorder(country,Count)),position = position_jitter(width=0.2, height=0.2), shape=21,stroke=0.05, col='grey70', size=3)+
@@ -170,9 +172,9 @@ panelopas<-ggplot(data=df_central_america)  + theme_classic()+
 panelopas
 ggsave(paste0(add_path, "/Figure 2.tiff"), width=18.8, height=5.74)
 
-#Output for Figure 3
-
-# Calculate total count of unique pango_lineages
+```
+## Create Figure 3. Relative percentages of SARS-CoV-2 lineages circulating in Central America and Dominican Republic from February 2020 to January 2023. Lineages with a frequency exceding 120 occurrences (n>120) per month were selected.
+```R
 total<- df_central_america%>%
   filter(pango_lineage !="None", pango_lineage !="NA", pango_lineage !="Unassigned") %>%
   filter(!is.na(Date))%>%
@@ -260,10 +262,6 @@ colors <- (colorRampPalette(c("lightgrey", "#666666","#bab0ab",'peachpuff3',"#9c
 
 # Ensure pango_lineage_adjusted is a factor with desired order
 p$pango_lineage_adjusted <- factor(p$pango_lineage_adjusted, levels = unique(p$pango_lineage_adjusted))
-```
-
-## Create Figure 3. Relative percentages of SARS-CoV-2 lineages circulating in Central America and Dominican Republic from February 2020 to January 2023. Lineages with a frequency exceding 120 occurrences (n>120) per month were selected.
-```R
 Q<-p%>%
   ggplot(aes(x=year_month, y=percentage,fill=pango_lineage_adjusted, label=scales::percent(abs(percentage)))) +
   geom_col() +
