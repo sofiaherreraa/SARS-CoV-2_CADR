@@ -2,6 +2,7 @@
 This R script is designed to generate figures for the manuscript: Overview of SARS-CoV-2 Genomic Surveillance in Central America and the Dominican Republic from February 2020 to January 2023: The Impact of PAHO and COMISCA's Collaborative Efforts.
 
 ## Load required libraries
+```R
 library(ggplot2)
 library(RColorBrewer)
 library(lubridate)
@@ -22,8 +23,9 @@ library(ggnewscale)
 library(colorspace)
 library(tibble)
 library(tidyr)
-
-# Update this path to their desired location
+```
+## Update this path to their desired location
+```R
 add_path = "/Users/yourpath"
 
 #Define the activities and dates
@@ -50,8 +52,9 @@ dates <- as.Date(c(
   '2021-09-20', '2021-11-24', '2021-06-01', 
   '2021-06-01', '2021-07-01', '2021-07-01',
   '2022-06-15', '2022-02-05', '2022-08-08'))
-
-# Create a data frame for plotting
+```
+## Create a data frame for plotting
+```R
 dataset <- tibble(
   Activity = activities,
   Start = dates,
@@ -124,8 +127,9 @@ df_count[order(df_count$Count),]
 #Add Country Count on the left side of the table
 df_central_america = df_central_america %>% 
   left_join(df_count, by = c("country" = "country"))
-
-#Creating data set with Pangolin Lineage Count - Ascending
+```
+## Creating data set with Pangolin Lineage Count - Ascending
+```R
 pangolin_count<-as.data.frame(table(df_central_america$pango_lineage))
 pangolin_count<-pangolin_count[order(pangolin_count$Freq), ]
 
@@ -281,5 +285,5 @@ Q <- Q +
            hjust = 1, vjust = 1.5, size = 4, fontface = "bold")
 Q
 ggsave(paste0(add_path, "/Figure 3.tiff"), width=12, height=6)
-
+```
 
