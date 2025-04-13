@@ -54,9 +54,7 @@ dates <- as.Date(c(
   '2021-09-20', '2021-11-24', '2021-06-01', 
   '2021-06-01', '2021-07-01', '2021-07-01',
   '2022-06-15', '2022-02-05', '2022-08-08'))
-```
-### Create a data frame for plotting
-```R
+# Create a data frame for plotting
 dataset <- tibble(
   Activity = activities,
   Start = dates,
