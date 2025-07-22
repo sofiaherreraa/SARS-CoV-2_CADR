@@ -389,7 +389,7 @@ if (exists("display_plot")) {
            plot = display_plot, width = 16, height = 12, dpi = 300)
 }
 ```
-## Create Figure 5.
+## Create Figure 5. Temporal dynamics of SARS-CoV-2 lineage proportions with COVID-19 statistical curves in Central America and the Dominican Republic.
 
 ```R
 # Read data from CSV
