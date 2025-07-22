@@ -127,7 +127,7 @@ ggsave(paste0(add_path, "/Figure 1.tiff"), width=16.1, height=5.74)
 ggsave(paste0(add_path, "/Figure 1.png"), width=16.1, height=5.74)
 ```
 
-## Create Figure 2.  Individual SARS-CoV-2 sequences obtained by country in Central America and Do-minican Republic from February 2020 to January 2023. The top 14 most prevalent lineages were individually labeled, and all the remaining lineages were labeled as other.
+## Create Figure 2.  Individual SARS-CoV-2 sequences obtained by country in Central America and Dominican Republic from February 2020 to January 2023. The top 14 most prevalent lineages were individually labeled, and all the remaining lineages were labeled as other.
 ```R
 # Load data
 data0 <- read_tsv(paste0("/content/path/centralamerica.tsv"))
@@ -212,7 +212,7 @@ add_path <- dirname("/content/path/centralamerica.tsv") # Define add_path locall
 ggsave(paste0(add_path, "/Figure 2.tiff"), panelopas, width=18.8, height=5.74)
 ggsave(paste0(add_path, "/Figure 2.png"), panelopas, width=18.8, height=5.74)
 ```
-## Create Figure 3. Relative percentages of SARS-CoV-2 lineages circulating in Central America and Dominican Republic from February 2020 to January 2023. Lineages with a frequency exceding 120 occurrences (n>120) per month were selected.
+## Create Figure 3. Bimonthly relative percentages of SARS-CoV-2 lineages circulating in Central America and the Dominican Republic from February 2020 to January 2023. 
 ```R
 # --- 1. Load and prepare data ---
 data0 <- read_tsv(paste0("/content/path/centralamerica.tsv"))
