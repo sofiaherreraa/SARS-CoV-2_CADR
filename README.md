@@ -32,15 +32,11 @@ conflict_prefer("mutate", "dplyr")
 conflict_prefer("summarise", "dplyr")
 conflict_prefer("group_by", "dplyr")
 
-# Define a combined color palette
-num_required_colors <- 150 # Generate more colors than potentially needed
-base_colors <- c("#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", "#fb9a99", "#e31a1c", "#fdbf6f", "#ff7f00", "#cab2d6", "#6a3d9a", "#ffff99", "#b15928") # A qualitative palette like Paired from ColorBrewer
+# Define the desired color palette
+base_colors <- c("lightgrey", "#117864", "#1d6996", "#e15759", "#edad08", "#9c755f", "#5f4690")
 
 # Create a color generating function
 color_generator <- colorRampPalette(base_colors)
-
-# Generate the custom color palette
-custom_colors <- color_generator(num_required_colors)
 ```
 ## Create Figure 1. Timeline of processes implemented to strengthen genomic surveillance of SARS-CoV-2 in Central America and the Dominican Republic.
 
@@ -95,20 +91,20 @@ dataset <- dataset %>%
 # Reverting to using the original Start and End dates for plotting,
 # but keeping the bimonthly breaks on the x-axis.
 
-# Generate colors from custom_colors with an interval for activities
+# Generate colors from the defined color_generator for activities
 num_activities <- length(unique(dataset$Activity))
-color_indices_activities <- floor(seq(1, length(custom_colors), length.out = num_activities))
-plot_colors_activities <- custom_colors[color_indices_activities]
+plot_colors_activities <- color_generator(num_activities)
+names(plot_colors_activities) <- unique(dataset$Activity) # Name colors with activity names
 
 
 # Plotting Gantt chart
 timeline<-ggplot(dataset, aes(x = Start, xend = End, y = Activity, yend = Activity, color = Activity)) + # Use original Start and End dates
-  geom_segment(size = 10) +
-  scale_color_manual(values = plot_colors_activities, guide = FALSE) + # Use plot_colors_activities manual scale
+  geom_segment(linewidth = 10) + # Changed size to linewidth
+  scale_color_manual(values = plot_colors_activities, guide = "none") + # Use plot_colors_activities manual scale, changed guide = FALSE to "none"
   labs(x = "Date", y = NULL) +
   theme_minimal(base_family = "Arial") + # Set base font family to Arial
-  theme(panel.grid.major.x = element_line(color = "#3c3c3c", size = 0.2)) +
-  theme(panel.grid.minor.x = element_line(color = "darkgray", size = 0.1)) +
+  theme(panel.grid.major.x = element_line(color = "#3c3c3c", linewidth = 0.2)) + # Changed size to linewidth
+  theme(panel.grid.minor.x = element_line(color = "darkgray", linewidth = 0.1)) + # Changed size to linewidth
   theme(axis.title.x = element_text(color="black", size=15, face="bold", vjust=-1)) +
   theme(axis.text.x = element_text(color="black", size=12))+
   theme(axis.text.y = element_text(color="black", size=12, hjust = 1)) +
@@ -129,6 +125,10 @@ ggsave(paste0(add_path, "/Figure 1.png"), width=16.1, height=5.74)
 
 ## Create Figure 2.  Individual SARS-CoV-2 sequences obtained by country in Central America and Dominican Republic from February 2020 to January 2023. The top 14 most prevalent lineages were individually labeled, and all the remaining lineages were labeled as other.
 ```R
+# Load libraries
+library(tidyverse)
+library(lubridate) # Load lubridate for dmy()
+
 # Load data
 data0 <- read_tsv(paste0("/content/path/centralamerica.tsv"))
 
@@ -176,15 +176,16 @@ df_central_america <- df_central_america %>%
   mutate(pango_lineage_grouped = ifelse(pango_lineage %in% lineages, pango_lineage, 'Other')) %>%
   mutate(pango_lineage_grouped = factor(pango_lineage_grouped, levels = lineages))
 
-# Generate colors from custom_colors with an interval for lineages
+# Generate colors from the defined color_generator for lineages
 num_lineages <- length(unique(df_central_america$pango_lineage_grouped))
-color_indices <- floor(seq(1, length(custom_colors), length.out = num_lineages))
-plot_colors <- custom_colors[color_indices]
+plot_colors <- color_generator(num_lineages)
+names(plot_colors) <- unique(df_central_america$pango_lineage_grouped) # Name colors with lineage names
+
 
 # Plot
 panelopas <- ggplot(data=df_central_america) +
   theme_classic(base_family = "Arial")+ # Set base font family to Arial
-  geom_segment(aes(x=as.Date("2020-02-01"), y=reorder(country,Count), xend=as.Date("2023-02-01"), yend=country, group=country), colour="grey80", size=5) +
+  geom_segment(aes(x=as.Date("2020-02-01"), y=reorder(country,Count), xend=as.Date("2023-02-01"), yend=country, group=country), colour="grey80", linewidth=5) + # Changed size to linewidth
 
   geom_point(aes(fill=pango_lineage_grouped, x=days, y=reorder(country,Count)),
              position = position_jitter(height=0.2), # Removed width=0.2
@@ -199,8 +200,8 @@ panelopas <- ggplot(data=df_central_america) +
   theme(axis.text.x = element_text(color="black", size=12))+
   theme(axis.title.y = element_text(color="black", size=15, face="bold")) +
   theme(axis.text.y = element_text(color="black", size=12))+
-  theme(panel.grid.major.x = element_line(color = "#3c3c3c", size = 0.2)) +
-  theme(panel.grid.minor.x = element_line(color = "darkgray", size = 0.08)) +
+  theme(panel.grid.major.x = element_line(color = "#3c3c3c", linewidth = 0.2)) + # Changed size to linewidth
+  theme(panel.grid.minor.x = element_line(color = "darkgray", linewidth = 0.08)) + # Changed size to linewidth
   scale_x_date(date_labels = "%b\n%Y",date_breaks = "2 month", date_minor_breaks = "1 month", limits = as.Date(c("2020-02-01", "2023-03-01")))+ # Explicitly set x-axis limits
   guides(fill = guide_legend(override.aes = list(size=5), nrow = 2))+
   xlab('Sample Collection Date')
@@ -212,182 +213,222 @@ add_path <- dirname("/content/path/centralamerica.tsv") # Define add_path locall
 ggsave(paste0(add_path, "/Figure 2.tiff"), panelopas, width=18.8, height=5.74)
 ggsave(paste0(add_path, "/Figure 2.png"), panelopas, width=18.8, height=5.74)
 ```
-## Create Figure 3. Bimonthly relative percentages of SARS-CoV-2 lineages circulating in Central America and the Dominican Republic from February 2020 to January 2023. 
+## Create Figure 3. Relative percentages of SARS-CoV-2 lineages circulating in Central America and the Dominican Republic from February 2020 to January 2023. 
 ```R
-# --- 1. Load and prepare data ---
-data0 <- read_tsv(paste0("/content/path/centralamerica.tsv"))
 
-# Print unique values and summary of the date column
-print("Unique values of date column before conversion:")
-print(unique(data0$date))
-print("Summary of date column before conversion:")
-print(summary(data0$date))
+add_path <- "/content/path"
+input_path <- file.path(add_path, "centralamerica.tsv")
 
-# Correct the date format string using parse_date_time with multiple orders
-# Adding a check for NA dates after conversion
-data0$date <- lubridate::parse_date_time(data0$date, orders = c("mdy", "dmy"), quiet = TRUE)
-if (any(is.na(data0$date))) {
-  warning("Some dates could not be parsed and were set to NA.")
-}
+# Load and clean data
+df <- read_tsv(input_path, show_col_types = FALSE) %>%
+  mutate(date = as.Date(date, format = "%d/%m/%y")) %>%
+  filter(!is.na(date)) %>%
+  filter(date > as.Date("2020-01-01") & date < as.Date("2023-02-01")) %>%
+  filter(!pango_lineage %in% c("None", "NA", "Unassigned", NA)) %>%
+  filter(!is.na(country))
 
-# Print data0 after date conversion
-print("data0 after date conversion:")
-print(head(data0))
-
-
-df <- data0 %>%
-  filter(date >= as.Date("2020-02-01"), date <= as.Date("2023-01-31")) %>% # Explicitly convert filter dates
-  filter(pango_lineage != "None", pango_lineage != "NA", pango_lineage != "Unassigned") %>%
-  filter(!is.na(date)) %>% # Filter out rows with NA dates after parsing
-  mutate(month = format(date, "%Y-%b")) # Keep original month format for reference if needed
-
-# Create a bimonthly grouping variable
-df$bimonth <- floor_date(df$date, unit = "month")
-# Adjust bimonth to start on odd months (Jan, Mar, May, etc.)
-df$bimonth <- df$bimonth - months((month(df$bimonth) - 1) %% 2)
-df$bimonth <- as.Date(df$bimonth)
-
-
-# Print df after initial filtering and bimonth creation
-print("df after initial filtering and bimonth creation:")
-print(head(df))
-
-
-# --- 2. Summarize data for total and country plots ---
-
-# Summarize for total plot
-df_total_summary <- df %>%
-  group_by(pango_lineage, bimonth) %>%
+# Global general table
+p <- df %>%
+  mutate(month = format(date, "%Y-%b")) %>%
+  filter(!is.na(month)) %>%
+  group_by(pango_lineage, month) %>%
   summarise(n = n(), .groups = "drop") %>%
-  group_by(pango_lineage) %>%
-  mutate(total = sum(n)) %>%
-  ungroup() %>%
-  mutate(pango_lineage_adjusted = ifelse(total <= 35, "Others", pango_lineage)) %>%
-  select(-total) %>%
-  group_by(bimonth, pango_lineage_adjusted) %>%
-  summarise(n = sum(n), .groups = "drop") %>%
-  complete(bimonth, pango_lineage_adjusted, fill = list(n = 0)) %>%
-  group_by(bimonth) %>%
+  mutate(pango_lineage_adj = ifelse(n <= 35, "Others", as.character(pango_lineage)))
+
+others <- p %>%
+  filter(pango_lineage_adj == "Others") %>%
+  group_by(month) %>%
+  summarise(n = sum(n), pango_lineage_adj = "Others", .groups = "drop")
+
+p_final <- bind_rows(
+  p %>% filter(pango_lineage_adj != "Others"),
+  others
+) %>%
+  filter(!is.na(pango_lineage_adj), !is.na(month))
+
+p_final <- p_final %>%
+  group_by(month) %>%
   mutate(percentage = n / sum(n)) %>%
   ungroup()
 
+# Prepare variables to order and factor months
+year_month_split <- strsplit(p_final$month, "-")
+years <- sapply(year_month_split, `[`, 1)
+months <- sapply(year_month_split, `[`, 2)
 
-# Summarize for country plots
-df_country_summary <- df %>%
-  group_by(country, pango_lineage, bimonth) %>%
-  summarise(n = n(), .groups = "drop") %>%
-  group_by(country, bimonth, pango_lineage) %>%
-  summarise(n = sum(n), .groups = "drop") %>% # Ensure correct grouping before calculating total per lineage for adjustment
-  group_by(pango_lineage) %>%
-  mutate(total = sum(n)) %>%
-  ungroup() %>%
-  mutate(pango_lineage_adjusted = ifelse(total <= 35, "Others", pango_lineage)) %>%
-  select(-total) %>%
-  group_by(country, bimonth, pango_lineage_adjusted) %>%
-  summarise(n = sum(n), .groups = "drop") %>%
-  complete(country, bimonth, pango_lineage_adjusted, fill = list(n = 0)) %>%
-  group_by(country, bimonth) %>%
-  mutate(percentage = n / sum(n)) %>%
-  ungroup()
+month_levels <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
-# Filter out countries with no data before creating plots
-countries_with_data <- df_country_summary %>%
-  group_by(country) %>%
-  summarise(total_n = sum(n)) %>%
-  filter(total_n > 0) %>%
-  pull(country)
+p_final <- p_final %>%
+  mutate(
+    year = as.numeric(years),
+    month_f = factor(months, levels = month_levels),
+    year_month = paste(year, month_f, sep = "-")
+  ) %>%
+  filter(!is.na(month_f)) %>%
+  arrange(year, month_f)
 
-df_country_summary_filtered <- df_country_summary %>%
-  filter(country %in% countries_with_data)
+p_final$year_month <- factor(p_final$year_month, levels = unique(p_final$year_month))
 
+# Valid lineages without "Others" and sorted
+linajes_validos <- unique(p_final$pango_lineage_adj)
+linajes_validos <- linajes_validos[linajes_validos != "Others"]
+linajes_validos <- sort(linajes_validos)
 
-# Print summarized dataframes
-print("df_total_summary head:")
-print(head(df_total_summary))
-print("df_country_summary_filtered head:")
-print(head(df_country_summary_filtered))
+niveles_lineages <- c("Others", linajes_validos)
 
+# Manual color palette
+base_colors <- c("#117864", "#1d6996", "#e15759", "#edad08", "#9c755f", "#5f4690")
 
-# Define color palette based on unique lineages across all final data (total and country)
-all_lineages_final <- unique(c(df_total_summary$pango_lineage_adjusted, df_country_summary_filtered$pango_lineage_adjusted))
+paletas_por_color <- lapply(base_colors, function(col) {
+  colorRampPalette(c(lighten(col, amount = 0.6), col, darken(col, amount = 0.3)))(10)
+})
 
-# Ensure the levels for total and country plots match the generated color names
-df_total_summary$pango_lineage_adjusted <- factor(df_total_summary$pango_lineage_adjusted, levels = all_lineages_final)
-df_country_summary_filtered$pango_lineage_adjusted <- factor(df_country_summary_filtered$pango_lineage_adjusted, levels = all_lineages_final)
+paleta_60 <- unlist(paletas_por_color)
 
-# Generate colors from custom_colors with an interval that covers all unique lineages
-num_lineages_total <- length(all_lineages_final)
-color_indices <- floor(seq(1, length(custom_colors), length.out = num_lineages_total))
-plot_colors <- custom_colors[color_indices]
-names(plot_colors) <- all_lineages_final # Name the colors with the lineage names for correct mapping
-
-
-# --- 3. Create plots ---
-
-# Create country plots
-country_plots <- df_country_summary_filtered %>%
-  split(.$country) %>%
-  map(~{
-    ggplot(.x, aes(x = bimonth, y = percentage, fill = pango_lineage_adjusted)) +
-      geom_area() +
-      scale_fill_manual(values = plot_colors, name = "Pangolin Lineages", guide = FALSE) + # Use the shared plot_colors manual scale and set guide = FALSE
-      scale_y_continuous(labels = scales::percent, breaks = seq(0, 1, 0.5)) +
-      scale_x_date(date_labels = "%b\n%Y", date_breaks = "2 months") +
-      labs(x = NULL, y = NULL, title = unique(.x$country)) +
-      theme_minimal(base_size = 8) +
-      theme(
-        axis.text.x = element_text(angle = 45, hjust = 1, size = 6),
-        axis.text.y = element_text(size = 6),
-        plot.title = element_text(size = 10, face = "bold", hjust = 0.8),
-        panel.grid.minor = element_blank(),
-        legend.position = "none" # Redundant with guide=FALSE, but good practice
-      )
-  })
-
-# Create the total plot
-Q_total <- df_total_summary %>%
-  ggplot(aes(x = bimonth, y = percentage, fill = pango_lineage_adjusted)) +
-  geom_area() +
-  theme_bw(base_family = "Arial") +
-  scale_fill_manual(values = plot_colors, name = "Pangolin Lineages") + # Use the shared plot_colors manual scale and set name
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.1, size = 10)) +
-  theme(axis.title.x = element_text(color = "black", size = 15, face = "bold", vjust = -1.5)) +
-  theme(axis.title.y = element_text(color = "black", size = 15, face = "bold", vjust = 1.5)) +
-  theme(axis.text.y = element_text(color = "black", size = 10)) +
-  xlab("Bimonthly Period") +
-  ylab("Percentage") +
-  labs(fill = "Pangolin Lineages") + # Ensure consistent legend title
-  scale_y_continuous(breaks = seq(0, 1, by = 0.10), labels = scales::percent(seq(0, 1, by = 0.10))) +
-  scale_x_date(date_labels = "%b %Y", date_breaks = "2 months")
-
-
-# --- 4. Combine and save plots ---
-
-# Combine into a composite figure
-if (length(country_plots) > 0) {
-  combined_plot <- (Q_total / wrap_plots(country_plots, ncol = 4)) +
-    plot_layout(heights = c(2, 2), guides = "collect") # Use guides = "collect" here
-
-  display_plot <- combined_plot & theme(legend.position = "bottom") # Apply legend position to combined plot
-  display_plot <- display_plot + plot_annotation(tag_levels = 'a', tag_prefix = "", tag_suffix = ")") # Apply annotation separately
-  # Removed explicit collect_guides call as plot_layout with guides="collect" should handle it
-
+num_linajes <- length(linajes_validos)
+if(num_linajes > length(paleta_60)) {
+  warning("There are more lineages than available colors, some colors will be repeated")
+  paleta_asignada <- rep(paleta_60, length.out = num_linajes)
 } else {
-  display_plot <- Q_total + plot_annotation(tag_levels = 'a', tag_prefix = "", tag_suffix = ")") & theme(legend.position = "bottom")
-  print("No country plots generated due to no data.")
+  paleta_asignada <- paleta_60[1:num_linajes]
 }
 
+palette_colors <- c(Others = "lightgrey", setNames(paleta_asignada, linajes_validos))
 
-# Show
-print(display_plot)
+# Ordered factor for p_final
+p_final$pango_lineage_adj <- factor(p_final$pango_lineage_adj, levels = niveles_lineages)
 
-# Save
-if (exists("display_plot")) {
-    ggsave(filename = paste0(add_path, "/Figure_3_total_plus_countries.tiff"),
-           plot = display_plot, width = 16, height = 12, dpi = 300)
-    ggsave(filename = paste0(add_path, "/Figure_3_total_plus_countries.png"),
-           plot = display_plot, width = 16, height = 12, dpi = 300)
+# --- New country-month calculation with strict filtering ---
+
+# Get valid months and lineages from general to filter country-month data
+meses_validos <- unique(p_final$month)
+linajes_validos_full <- unique(p_final$pango_lineage_adj)
+
+# Count by country, month, and lineage (without grouping "Others" yet)
+df_counts <- df %>%
+  mutate(month = format(date, "%Y-%b")) %>%
+  filter(month %in% meses_validos) %>%   # Only valid months from general
+  group_by(country, month, pango_lineage) %>%
+  summarise(n = n(), .groups = "drop")
+
+# Create auxiliary table with valid lineages and months and their general classification
+linajes_mes_general <- p %>%
+  select(pango_lineage, month, pango_lineage_adj) %>%
+  distinct()
+
+# Join to assign general classification to each lineage-country-month
+df_counts_joined <- df_counts %>%
+  inner_join(linajes_mes_general, by = c("pango_lineage", "month")) %>%
+  rename(pango_lineage_adj = pango_lineage_adj)
+
+# Sum "Others" by country and month
+others_country_month <- df_counts_joined %>%
+  filter(pango_lineage_adj == "Others") %>%
+  group_by(country, month) %>%
+  summarise(n = sum(n), pango_lineage_adj = "Others", .groups = "drop")
+
+# Lineages different from Others
+linajes_country_month <- df_counts_joined %>%
+  filter(pango_lineage_adj != "Others")
+
+# Combine all
+df_final_country <- bind_rows(linajes_country_month, others_country_month)
+
+# Complete with all possible combinations to show months without data in each country
+all_countries <- unique(df_final_country$country)
+all_months <- unique(p_final$month)
+all_lineages <- niveles_lineages
+
+df_final_country_complete <- df_final_country %>%
+  complete(
+    country = all_countries,
+    month = all_months,
+    pango_lineage_adj = all_lineages,
+    fill = list(n = 0)
+  ) %>%
+  group_by(country, month) %>%
+  mutate(total_n = sum(n)) %>%
+  ungroup() %>%
+  mutate(proportion = if_else(total_n == 0, 0, n / total_n)) %>%
+  select(-total_n)
+
+# Factorize for plots
+df_final_country_complete <- df_final_country_complete %>%
+  mutate(
+    month_f = factor(month, levels = unique(p_final$month)),
+    pango_lineage_adj = factor(pango_lineage_adj, levels = niveles_lineages),
+    country = factor(country, levels = sort(unique(country)))
+  )
+
+# Create labels like a), b), c) for facets
+labels <- data.frame(
+  country = levels(df_final_country_complete$country),
+  tag = paste0(letters[seq_along(levels(df_final_country_complete$country))], ")")
+)
+
+labeller_with_tag <- function(variable, value) {
+  tags <- labels$tag[match(value, labels$country)]
+  paste0(tags, " ", value)
 }
+
+# General plot without legend
+g_general <- ggplot(p_final, aes(x = year_month, y = percentage, fill = pango_lineage_adj)) +
+  geom_col() +
+  theme_bw() +
+  scale_fill_manual(values = palette_colors) +
+  scale_y_continuous(labels = scales::percent, breaks = seq(0, 1, 0.1), limits = c(0, 1)) +
+  scale_x_discrete(drop = FALSE) +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.3, hjust = 1, size = 12),
+    axis.text.y = element_text(size = 12),
+    axis.title.x = element_text(size = 16, face = "bold"),
+    axis.title.y = element_text(size = 16, face = "bold"),
+    legend.position = "none",
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    plot.margin = margin(t=10, r=10, b=10, l=10)
+  ) +
+  labs(
+    x = "Months",
+    y = "Percentage",
+    title = "a) General"
+  )
+
+# Country plot with legend and labels a), b), c), ...
+country_levels <- sort(unique(df_final_country_complete$country))
+country_labels <- paste0(letters[2:(length(country_levels)+1)], ") ", country_levels)
+names(country_labels) <- country_levels
+
+g_country <- ggplot(df_final_country_complete, aes(x = month_f, y = proportion, fill = pango_lineage_adj)) +
+  geom_col() +
+  facet_wrap(~country, ncol = 4, scales = "free_x",
+             labeller = labeller(country = country_labels)) +
+  scale_fill_manual(values = palette_colors, name = "Lineages") +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), breaks = seq(0, 1, 0.2), limits = c(0, 1)) +
+  theme_minimal(base_family = "Arial") +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.3, hjust = 1, size = 9),
+    axis.text.y = element_text(size = 9),
+    axis.title = element_text(size = 12),
+    strip.text = element_text(size = 11, face = "bold"),
+    legend.position = "bottom",
+    legend.text = element_text(size = 10),
+    legend.title = element_text(size = 12),
+    legend.key.size = unit(0.6, "cm"),
+    plot.margin = margin(t=10, r=10, b=10, l=10)
+  ) +
+  guides(fill = guide_legend(ncol = 8, byrow = TRUE)) +
+  labs(
+    x = "Months",
+    y = "Relative Frequency"
+  )
+
+# Combine and save
+final_plot <- g_general / g_country + patchwork::plot_layout(heights = c(2, 3))
+
+ggsave(filename = file.path(add_path, "Figure_3.tiff"), plot = final_plot, width = 16, height = 14, dpi = 300)
+ggsave(filename = file.path(add_path, "Figure_3.png"), plot = final_plot, width = 16, height = 14, dpi = 300)
+print(final_plot)
 ```
 ## Create Figure 5. Temporal dynamics of SARS-CoV-2 lineage proportions with COVID-19 statistical curves in Central America and the Dominican Republic.
 
@@ -396,48 +437,20 @@ if (exists("display_plot")) {
 # Make sure the CSV file path is correct
 df <- read_csv("/content/path/Combined_data.csv")
 
-# Separate the single column into multiple columns
 df <- df %>%
   separate(`Country;Month;Parameter;Value`, into = c("Country", "Month", "Parameter", "Value"), sep = ";") %>%
-  mutate(Value = as.numeric(Value)) # Convert Value to numeric
+  mutate(Value = as.numeric(Value))
 
-# Check columns and first rows to understand structure
-glimpse(df)
-head(df)
-
-# Pivot to have each parameter in a column
-# Aggregate before pivoting to avoid duplicate issues in pivot_wider
 df_aggregated <- df %>%
   group_by(Country, Month, Parameter) %>%
-  summarise(Value = sum(Value, na.rm = TRUE)) %>%
-  ungroup()
+  summarise(Value = sum(Value, na.rm = TRUE), .groups = "drop")
 
 df_wide <- df_aggregated %>%
-  pivot_wider(names_from = Parameter, values_from = Value, values_fill = 0)
+  pivot_wider(names_from = Parameter, values_from = Value, values_fill = 0) %>%
+  mutate(Month = ymd(paste0(Month, "-01")))
 
-
-# Convert Month to date and create numeric time variable
-# Repair month format by adding day and then parse as date
-df_wide <- df_wide %>%
-  mutate(Month = paste0(Month, "-01")) %>% # Add day 01
-  mutate(Month = ymd(Month), # Convert to Date
-         time_num = as.integer(format(Month, "%Y")) * 12 + as.integer(format(Month, "%m")),
-         time_num = time_num - min(time_num, na.rm = TRUE) + 1)
-
-# Identify lineage columns (adjust pattern if necessary)
-# This pattern may need adjustment depending on how lineages are named in your data
 linajes_cols <- grep("^B\\.|^BA\\.|^AY\\.|^XBB|^Delta|^Omicron", colnames(df_wide), value = TRUE)
 
-
-# Calculate lineage proportion for each row
-df_wide <- df_wide %>%
-  rowwise() %>%
-  mutate(total_linajes = sum(c_across(all_of(linajes_cols)), na.rm = TRUE), # Added na.rm=TRUE
-         across(all_of(linajes_cols), ~ ifelse(total_linajes == 0, 0, . / total_linajes), .names = "prop_{col}")) %>%
-  ungroup()
-
-# Show first rows of the prepared dataframe
-head(df_wide)
 df_wide <- df_wide %>%
   rowwise() %>%
   mutate(
@@ -445,48 +458,25 @@ df_wide <- df_wide %>%
     across(all_of(linajes_cols), ~ ifelse(total_linajes == 0, 0, . / total_linajes), .names = "prop_{col}")
   ) %>%
   ungroup()
-df_wide$total_linajes <- rowSums(df_wide[, linajes_cols], na.rm = TRUE)
-df_wide <- df_wide %>%
-  mutate(across(all_of(linajes_cols),
-                ~ ifelse(total_linajes == 0, 0, . / total_linajes),
-                .names = "prop_{col}"))
-head(df_wide)
-df_wide <- df_wide %>%
-  mutate(
-    Month = as.character(Month),                
-    Month = ym(Month),                          
-    time_num = as.integer(format(Month, "%Y")) * 12 + as.integer(format(Month, "%m"))
-  ) %>%
-  mutate(time_num = time_num - min(time_num, na.rm = TRUE) + 1)
-df_wide <- df_aggregated %>%
-glimpse(df_aggregated)
-unique(df_aggregated$Month)
-# Calculate total counts per lineage and filter those with more than 35 total cases
-linajes_cols <- grep("^B\\.|^BA\\.|^AY\\.|^XBB|^Delta|^Omicron", colnames(df_wide), value = TRUE)
 
 linajes_totales <- df_wide %>%
-  dplyr::select(all_of(linajes_cols)) %>%
-  summarise(across(everything(), sum, na.rm = TRUE)) %>%
-  pivot_longer(cols = everything(), names_to = "linaje", values_to = "total") %>%
-  filter(total > 35) %>%
-  arrange(desc(total))
+  summarise(across(all_of(linajes_cols), sum, na.rm = TRUE)) %>%
+  pivot_longer(everything(), names_to = "linaje", values_to = "total") %>%
+  filter(total > 35)
 
 linajes_top <- linajes_totales$linaje
 
-# Prepare long-format dataframe with selected lineages and sum monthly cases
 df_long_top <- df_wide %>%
-  dplyr::select(Month, all_of(linajes_top)) %>%
+  select(Month, all_of(linajes_top)) %>%
   pivot_longer(cols = all_of(linajes_top), names_to = "linaje", values_to = "casos") %>%
   group_by(Month, linaje) %>%
   summarise(total_casos = sum(casos, na.rm = TRUE), .groups = "drop")
 
-# Calculate monthly proportions per lineage
 df_prop <- df_long_top %>%
   group_by(Month) %>%
   mutate(prop = total_casos / sum(total_casos)) %>%
   ungroup()
 
-# Get total deaths and cases per month
 df_muertes <- df_wide %>%
   group_by(Month) %>%
   summarise(total_deaths = sum(total_deaths, na.rm = TRUE), .groups = "drop")
@@ -495,20 +485,18 @@ df_casos <- df_wide %>%
   group_by(Month) %>%
   summarise(total_cases = sum(case_number, na.rm = TRUE), .groups = "drop")
 
-# Merge proportions with deaths and cases
-df_plot <- left_join(df_prop, df_muertes, by = "Month") %>%
-           left_join(df_casos, by = "Month")
-write_csv(df_plot, "/content/path/df_plot_completo.csv")
+df_plot <- df_prop %>%
+  left_join(df_muertes, by = "Month") %>%
+  left_join(df_casos, by = "Month")
 
-
-# Define custom color palette - Use the global custom_colors
-# Generate colors from custom_colors with an interval that covers all unique lineages in df_plot
+# Colors
+base_colors <- c("lightgrey", "#117864", "#1d6996", "#e15759", "#edad08", "#9c755f", "#5f4690")
+color_generator <- colorRampPalette(base_colors)
 num_lineages_plot <- length(unique(df_plot$linaje))
-color_indices_plot <- floor(seq(1, length(custom_colors), length.out = num_lineages_plot))
-plot_colors_fig5 <- custom_colors[color_indices_plot]
-names(plot_colors_fig5) <- unique(df_plot$linaje) # Name colors with lineage names
+plot_colors_fig5 <- color_generator(num_lineages_plot)
+names(plot_colors_fig5) <- unique(df_plot$linaje)
 
-# Generate plots
+# Total deaths
 grafico_muertes <- ggplot(df_plot, aes(x = Month)) +
   geom_area(aes(y = prop, fill = linaje), position = "stack", alpha = 0.7, color = "black", size = 0.1) +
   geom_line(aes(y = total_deaths / max(total_deaths, na.rm = TRUE), group = 1),
@@ -517,45 +505,43 @@ grafico_muertes <- ggplot(df_plot, aes(x = Month)) +
     name = "Lineage proportion",
     sec.axis = sec_axis(~ . * max(df_muertes$total_deaths, na.rm = TRUE), name = "Total deaths")
   ) +
-  scale_fill_manual(values = plot_colors_fig5, name = "Lineage", guide = FALSE) + # Use plot_colors_fig5 and set name, add guide = FALSE
-  labs(title = "Evolution of lineage proportion with death curve",
-       x = "Year", 
-       fill = "Lineage") + # Ensure consistent legend title
-  theme_minimal(base_family = "Arial") + # Set base font family to Arial
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  scale_fill_manual(values = plot_colors_fig5, name = "Lineage") +
+  labs(title = "Evolution of lineage proportion with death curve", x = "Year") +
+  theme_minimal(base_family = "Arial") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "bottom"
+  )
 
+# Total cases
 grafico_casos <- ggplot(df_plot, aes(x = Month)) +
   geom_area(aes(y = prop, fill = linaje), position = "stack", alpha = 0.7, color = "black", size = 0.1) +
   geom_line(aes(y = total_cases / max(total_cases, na.rm = TRUE), group = 1),
             color = "black", size = 1.2, linetype = "dashed") +
   scale_y_continuous(
     name = "Lineage proportion",
-    sec.axis = sec_axis(~ . * max(df_casos$total_cases, na.rm = TRUE),
-                        name = "Total cases", labels = scales::comma)
+    sec.axis = sec_axis(~ . * max(df_casos$total_cases, na.rm = TRUE), name = "Total cases", labels = comma)
   ) +
-  scale_fill_manual(values = plot_colors_fig5, name = "Lineage") + # Use plot_colors_fig5 and set name
-  labs(title = "Evolution of lineage proportion with case curve",
-       x = "Year",
-       fill = "Lineage") + # Ensure consistent legend title
-  theme_minimal(base_family = "Arial") + # Set base font family to Arial
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        legend.position = "bottom") # Keep legend for this plot
+  scale_fill_manual(values = plot_colors_fig5, name = "Lineage") +
+  labs(title = "Evolution of lineage proportion with case curve", x = "Year") +
+  theme_minimal(base_family = "Arial") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "bottom"
+  )
 
+# Use patchwork for combind legends
+final_plot <- grafico_muertes / grafico_casos + 
+  plot_layout(guides = "collect") & 
+  theme(legend.position = 'bottom')
 
-plot_final = (grafico_muertes / grafico_casos) +
-  plot_annotation(tag_levels = "A") +
-  plot_layout(guides = "collect") # Collect guides
-
-
-print(plot_final)
+print(final_plot)
 
 # Save
-ggsave(filename = "/content/path/Plot_final.tiff",
-       plot = plot_final,
-       width = 12, height = 10, dpi = 300, units = "in") # Increased height to accommodate legend
-ggsave(filename = "/content/path/Plot_final.png",
-       plot = plot_final,
-       width = 12, height = 10, dpi = 300, units = "in") # Increased height to accommodate legend
+ggsave("/cloud/project/Figure_5.tiff", plot = final_plot, width = 12, height = 10.5, dpi = 300, units = "in")
+ggsave("/cloud/project/Figure_5.png", plot = final_plot, width = 12, height = 10.5, dpi = 300, units = "in")
+
+
 ```
 ## Create Complementary Figure 1. Individual SARS-CoV-2 sequences obtained by country in Central America and Do-minican Republic from February 2020 to January 2023. (30, 50, 100)
 
@@ -606,10 +592,10 @@ make_lineage_plot <- function(data, top_n = 14) {
   data <- data %>%
     mutate(pango_lineage_grouped = if_else(pango_lineage %in% top_lineages, pango_lineage, "Other"))
 
-  # Generate colors from custom_colors with an interval
+  # Generate colors from the defined color_generator for lineages
   num_lineages <- length(unique(data$pango_lineage_grouped))
-  color_indices <- floor(seq(1, length(custom_colors), length.out = num_lineages))
-  plot_colors <- custom_colors[color_indices]
+  plot_colors <- color_generator(num_lineages)
+  names(plot_colors) <- unique(data$pango_lineage_grouped) # Name colors with lineage names
 
   # Ensure that the levels for the fill aesthetic match the selected colors
   data$pango_lineage_grouped <- factor(data$pango_lineage_grouped, levels = unique(data$pango_lineage_grouped))
@@ -619,8 +605,8 @@ make_lineage_plot <- function(data, top_n = 14) {
     theme_classic(base_family = "Arial") + # Set base font family to Arial
     geom_segment(aes(x = as.Date("2020-02-01"), y = reorder(country, Count),
                      xend = as.Date("2023-02-01"), yend = country, group = country),
-                 colour = "grey80", size = 5) +
-    geom_point(aes(fill = pango_lineage_grouped, x = bimonth, y = reorder(country, Count)), # Use bimonth for x-axis
+                 colour = "grey80", linewidth = 5) + # Changed size to linewidth
+    geom_point(aes(fill = pango_lineage_grouped, x = days, y = reorder(country, Count)), # Use days for x-axis
                position = position_jitter(width = 0.2, height = 0.2),
                shape = 21, stroke = 0.1, col = 'black', size = 3, alpha = 0.7) +
     ylab('') + xlab('Sample Collection Date') +
@@ -634,8 +620,8 @@ make_lineage_plot <- function(data, top_n = 14) {
       axis.text.x = element_text(color = "black", size = 10, angle = 45, hjust = 1),
       axis.title.y = element_text(color = "black", size = 15, face = "bold"),
       axis.text.y = element_text(color = "black", size = 12),
-      panel.grid.major.x = element_line(color = "#3c3c3c", size = 0.2),
-      panel.grid.minor.x = element_line(color = "darkgray", size = 0.08),
+      panel.grid.major.x = element_line(color = "#3c3c3c", linewidth = 0.2), # Changed size to linewidth
+      panel.grid.minor.x = element_line(color = "darkgray", linewidth = 0.08), # Changed size to linewidth
       plot.margin = margin(t = 10, r = 90, b = 70, l = 10)  # ← Increased right margin
     ) +
     guides(fill = guide_legend(override.aes = list(size = 4), ncol = 4, byrow = TRUE)) +
@@ -655,6 +641,13 @@ print(mosaic_plot)
 
 # Save final image
 ggsave(filename = paste0(add_path, "/Supplement_of_Figure_2.tiff"),
+       plot = mosaic_plot,
+       width = 20,
+       height = 26,
+       units = "in",
+       dpi = 300
+)
+ggsave(filename = paste0(add_path, "/Supplement_of_Figure_2.png"),
        plot = mosaic_plot,
        width = 20,
        height = 26,
