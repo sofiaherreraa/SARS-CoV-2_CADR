@@ -655,4 +655,189 @@ ggsave(filename = paste0(add_path, "/Supplement_of_Figure_2.png"),
        dpi = 300
 )
 ```
+## Create Complementary Table S2. Regression Coefficients from Negative Binomial Models Assessing the Association Between Monthly SARS-CoV-2 Lineage Proportions and Reported Cases and Deaths in Central America and the Dominican Republic, Feb2020–Ene2023.
+
+```R
+# Install packages if necessary
+if(!require(tidyverse)) install.packages("tidyverse")
+if(!require(lubridate)) install.packages("lubridate")
+if(!require(dplyr)) install.packages("dplyr")
+if(!require(pheatmap)) install.packages("pheatmap")
+if(!require(corrplot)) install.packages("corrplot")
+if(!require(patchwork)) install.packages("patchwork")
+if(!require(corr)) install.packages("corr")
+
+library(tidyverse)
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(patchwork)
+library(MASS)
+
+
+# Read data from CSV
+# Make sure the CSV file path is correct
+df <- read_csv("/content/path/Combined_data.csv")
+
+# Separate the single column into multiple columns
+df <- df %>%
+  separate(`Country;Month;Parameter;Value`, into = c("Country", "Month", "Parameter", "Value"), sep = ";") %>%
+  mutate(Value = as.numeric(Value)) # Convert Value to numeric
+
+# Check columns and first rows to understand structure
+glimpse(df)
+head(df)
+
+# Pivot to have each parameter in a column
+# Aggregate before to avoid duplicate issues in pivot_wider
+df_aggregated <- df %>%
+  group_by(Country, Month, Parameter) %>%
+  summarise(Value = sum(Value, na.rm = TRUE)) %>%
+  ungroup()
+
+df_wide <- df_aggregated %>%
+  pivot_wider(names_from = Parameter, values_from = Value, values_fill = 0)
+
+
+# Convert Month to date and create numerical time variable
+df_wide <- df_wide %>%
+  mutate(Month = ym(Month),
+         time_num = as.integer(format(Month, "%Y")) * 12 + as.integer(format(Month, "%m")),
+         time_num = time_num - min(time_num) + 1)
+
+# Identify lineage columns (adjust pattern if necessary)
+# This pattern may need adjustment depending on how lineages are named in your data
+linajes_cols <- grep("^B\\.|^BA\\.|^AY\\.|^XBB|^Delta|^Omicron", colnames(df_wide), value = TRUE)
+
+
+# Calculate lineage proportion for each row
+df_wide <- df_wide %>%
+  rowwise() %>%
+  mutate(total_linajes = sum(c_across(all_of(linajes_cols)), na.rm = TRUE), # Added na.rm=TRUE
+         across(all_of(linajes_cols), ~ ifelse(total_linajes == 0, 0, . / total_linajes), .names = "prop_{col}")) %>%
+  ungroup()
+
+# Show first rows of the prepared dataframe
+head(df_wide)
+
+# Calculate totals by lineage to filter out those with more than 35 total cases
+linajes_cols <- grep("^B\\.|^BA\\.|^AY\\.|^XBB|^Delta|^Omicron", colnames(df_wide), value = TRUE)
+
+linajes_totales <- df_wide %>%
+  dplyr::select(all_of(linajes_cols)) %>%
+  summarise(across(everything(), sum, na.rm = TRUE)) %>%
+  pivot_longer(cols = everything(), names_to = "linaje", values_to = "total") %>%
+  arrange(desc(total))
+
+linajes_top <- linajes_totales$linaje
+
+# Prepare long df with top lineages and add cases per month
+df_long_top <- df_wide %>%
+  dplyr::select(Month, all_of(linajes_top)) %>%
+  pivot_longer(cols = all_of(linajes_top), names_to = "linaje", values_to = "casos") %>%
+  group_by(Month, linaje) %>%
+  summarise(total_casos = sum(casos, na.rm = TRUE), .groups = "drop")
+
+# Calculate monthly proportions by lineage
+df_prop <- df_long_top %>%
+  group_by(Month) %>%
+  mutate(prop = total_casos / sum(total_casos)) %>%
+  ungroup()
+
+# Obtain total deaths per month
+df_muertes <- df_wide %>%
+  group_by(Month) %>%
+  summarise(total_deaths = sum(total_deaths, na.rm = TRUE), .groups = "drop")
+
+df_casos <- df_wide %>%
+  group_by(Month) %>%
+  summarise(total_cases = sum(case_number, na.rm = TRUE), .groups = "drop")
+
+df_plot <- left_join(df_prop, df_muertes, df_casos, by = "Month")
+df_plot <- left_join(df_plot, df_casos, by = "Month")
+
+df_plot <- df_plot %>%
+  arrange(Month) %>%
+  mutate(time_index = as.integer(as.Date(Month))) 
+
+df_model <- df_plot %>%
+  dplyr::select(Month, linaje, prop, total_cases, total_deaths ,time_index) %>%
+  distinct() %>%
+  pivot_wider(names_from = linaje, values_from = prop, values_fill = 0) %>%
+  arrange(Month)
+
+# Calculate variance for each lineage in df_model
+linajes_var <- sapply(df_model[, linajes_cols], var, na.rm = TRUE)
+
+# Filter lineages with significant variance (e.g. > 0.001)
+linajes_filtrados <- names(linajes_var[linajes_var > 0.001])
+linajes_filtrados <- setdiff(linajes_filtrados, "total_deaths")
+
+
+# Reform formula with filtered lineages
+fmla_cases <- as.formula(
+  paste("total_cases ~ time_index +", paste(linajes_filtrados, collapse = " + "))
+)
+
+fmla_deaths <- as.formula(
+  paste("total_deaths ~ time_index +", paste(linajes_filtrados, collapse = " + "))
+)
+
+# Fit Poisson model for cases to check for overdispersion
+modelo_pois_cases <- glm(fmla_cases, data = df_model, family = poisson(link = "log"))
+
+# Calculate dispersion for cases
+dispersion_cases <- sum(residuals(modelo_pois_cases, type = "pearson")^2) / df.residual(modelo_pois_cases)
+cat("Dispersion (Cases):", dispersion_cases, "\n")
+
+# If there is overdispersion, use negative binomial for cases
+if(dispersion_cases > 1.5){
+  modelo_nb_cases <- glm.nb(fmla_cases, data = df_model)
+  summary(modelo_nb_cases)
+} else {
+  modelo_final_cases <- modelo_pois_cases
+  summary(modelo_final_cases)
+}
+
+# Fit Poisson model for deaths to check for overdispersion
+modelo_pois_deaths <- glm(fmla_deaths, data = df_model, family = poisson(link = "log"))
+
+# Calculate dispersion for deaths
+dispersion_deaths <- sum(residuals(modelo_pois_deaths, type = "pearson")^2) / df.residual(modelo_pois_deaths)
+cat("Dispersion (Deaths):", dispersion_deaths, "\n")
+
+# If there is overdispersion, use negative binomial for deaths
+if(dispersion_deaths > 1.5){
+  modelo_nb_deaths <- glm.nb(fmla_deaths, data = df_model)
+  summary(modelo_nb_deaths)
+} else {
+  modelo_final_deaths <- modelo_pois_deaths
+  summary(modelo_final_deaths)
+}
+
+
+# Obtain coefficients of the final case model
+modelo_final_cases <- if(dispersion_cases > 1.5) modelo_nb_cases else modelo_pois_cases
+summary_cases <- summary(modelo_final_cases)
+coef_cases <- data.frame(summary_cases$coefficients)
+coef_cases <- cbind(Term = rownames(coef_cases), coef_cases)
+colnames(coef_cases) <- c("Term", "Estimate", "Std.Error", "z.value", "p.value")
+coef_cases$Model <- "Cases"  # etiqueta para el modelo
+
+# Obtain coefficients of the final death model
+modelo_final_deaths <- if(dispersion_deaths > 1.5) modelo_nb_deaths else modelo_pois_deaths
+summary_deaths <- summary(modelo_final_deaths)
+coef_deaths <- data.frame(summary_deaths$coefficients)
+coef_deaths <- cbind(Term = rownames(coef_deaths), coef_deaths)
+colnames(coef_deaths) <- c("Term", "Estimate", "Std.Error", "z.value", "p.value")
+coef_deaths$Model <- "Deaths"  # etiqueta para el modelo
+
+# Combine both results
+combined_results <- rbind(coef_cases, coef_deaths)
+
+# Save as CSV
+write_csv(combined_results, "Supplementary_Table_S2.csv")
+
+```
 
