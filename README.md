@@ -185,11 +185,11 @@ names(plot_colors) <- unique(df_central_america$pango_lineage_grouped) # Name co
 # Plot
 panelopas <- ggplot(data=df_central_america) +
   theme_classic(base_family = "Arial")+ # Set base font family to Arial
-  geom_segment(aes(x=as.Date("2020-02-01"), y=reorder(country,Count), xend=as.Date("2023-02-01"), yend=country, group=country), colour="grey80", linewidth=5) + # Changed size to linewidth
+  geom_segment(aes(x=as.Date("2020-02-01"), y=reorder(country,Count), xend=as.Date("2023-02-01"), yend=country, group=country), colour="grey90", linewidth=1.5) + # Changed size to linewidth
 
   geom_point(aes(fill=pango_lineage_grouped, x=days, y=reorder(country,Count)),
-             position = position_jitter(height=0.2), # Removed width=0.2
-             shape=21, stroke=0.05, col='grey70', size=3, na.rm = TRUE) + # Added na.rm = TRUE
+             position = position_jitter(height=0.4), # Removed width=0.2
+             shape=21, stroke=0.05, col='grey60', size=3, na.rm = TRUE) + # Added na.rm = TRUE
 
   ylab('')+ xlab('month')+ ggtitle('') +
 
@@ -210,8 +210,8 @@ panelopas <- ggplot(data=df_central_america) +
 # Extract the directory path from read_path (assuming read_path is defined earlier)
 add_path <- dirname("/content/path/centralamerica.tsv") # Define add_path locally if read_path is not globally available
 
-ggsave(paste0(add_path, "/Figure 2.tiff"), panelopas, width=18.8, height=5.74)
-ggsave(paste0(add_path, "/Figure 2.png"), panelopas, width=18.8, height=5.74)
+ggsave(paste0(add_path, "/Figure 2.tiff"), panelopas, width=18.8, height=10)
+ggsave(paste0(add_path, "/Figure 2.png"), panelopas, width=18.8, height=10)
 ```
 ## Create Figure 3. Relative percentages of SARS-CoV-2 lineages circulating in Central America and the Dominican Republic from February 2020 to January 2023. 
 ```R
@@ -300,42 +300,32 @@ palette_colors <- c(Others = "lightgrey", setNames(paleta_asignada, linajes_vali
 p_final$pango_lineage_adj <- factor(p_final$pango_lineage_adj, levels = niveles_lineages)
 
 # --- New country-month calculation with strict filtering ---
-
-# Get valid months and lineages from general to filter country-month data
 meses_validos <- unique(p_final$month)
-linajes_validos_full <- unique(p_final$pango_lineage_adj)
 
-# Count by country, month, and lineage (without grouping "Others" yet)
 df_counts <- df %>%
   mutate(month = format(date, "%Y-%b")) %>%
-  filter(month %in% meses_validos) %>%   # Only valid months from general
+  filter(month %in% meses_validos) %>%
   group_by(country, month, pango_lineage) %>%
   summarise(n = n(), .groups = "drop")
 
-# Create auxiliary table with valid lineages and months and their general classification
 linajes_mes_general <- p %>%
   select(pango_lineage, month, pango_lineage_adj) %>%
   distinct()
 
-# Join to assign general classification to each lineage-country-month
 df_counts_joined <- df_counts %>%
   inner_join(linajes_mes_general, by = c("pango_lineage", "month")) %>%
   rename(pango_lineage_adj = pango_lineage_adj)
 
-# Sum "Others" by country and month
 others_country_month <- df_counts_joined %>%
   filter(pango_lineage_adj == "Others") %>%
   group_by(country, month) %>%
   summarise(n = sum(n), pango_lineage_adj = "Others", .groups = "drop")
 
-# Lineages different from Others
 linajes_country_month <- df_counts_joined %>%
   filter(pango_lineage_adj != "Others")
 
-# Combine all
 df_final_country <- bind_rows(linajes_country_month, others_country_month)
 
-# Complete with all possible combinations to show months without data in each country
 all_countries <- unique(df_final_country$country)
 all_months <- unique(p_final$month)
 all_lineages <- niveles_lineages
@@ -353,7 +343,6 @@ df_final_country_complete <- df_final_country %>%
   mutate(proportion = if_else(total_n == 0, 0, n / total_n)) %>%
   select(-total_n)
 
-# Factorize for plots
 df_final_country_complete <- df_final_country_complete %>%
   mutate(
     month_f = factor(month, levels = unique(p_final$month)),
@@ -361,32 +350,31 @@ df_final_country_complete <- df_final_country_complete %>%
     country = factor(country, levels = sort(unique(country)))
   )
 
-# Create labels like a), b), c) for facets
-labels <- data.frame(
-  country = levels(df_final_country_complete$country),
-  tag = paste0(letters[seq_along(levels(df_final_country_complete$country))], ")")
-)
+# --- NEW BLOCK: labels with sample counts ---
+# --- Labels with sample counts per country ---
+samples_per_country <- df %>%
+  group_by(country) %>%
+  summarise(total_samples = n(), .groups = "drop")
 
-labeller_with_tag <- function(variable, value) {
-  tags <- labels$tag[match(value, labels$country)]
-  paste0(tags, " ", value)
-}
+country_labels <- samples_per_country %>%
+  mutate(label = paste0(country, " (n = ", total_samples, ")")) %>%
+  { setNames(.$label, .$country) }
 
-# General plot without legend
+# --- General plot ---
 g_general <- ggplot(p_final, aes(x = year_month, y = percentage, fill = pango_lineage_adj)) +
   geom_col() +
   theme_bw() +
   scale_fill_manual(values = palette_colors) +
   scale_y_continuous(labels = scales::percent, breaks = seq(0, 1, 0.1), limits = c(0, 1)) +
+  theme_minimal(base_family = "Arial", base_size = 14) +
   scale_x_discrete(drop = FALSE) +
   theme(
     axis.text.x = element_text(angle = 90, vjust = 0.3, hjust = 1, size = 12),
     axis.text.y = element_text(size = 12),
-    axis.title.x = element_text(size = 16, face = "bold"),
-    axis.title.y = element_text(size = 16, face = "bold"),
-    legend.position = "none",
-    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
-    plot.margin = margin(t=10, r=10, b=10, l=10)
+    axis.title.x = element_text(size = 19, face = "bold"),
+    axis.title.y = element_text(size = 19, face = "bold"),
+    title = element_text(size = 16, face = "bold"),
+    legend.position = "none"
   ) +
   labs(
     x = "Months",
@@ -394,33 +382,35 @@ g_general <- ggplot(p_final, aes(x = year_month, y = percentage, fill = pango_li
     title = "a) General"
   )
 
-# Country plot with legend and labels a), b), c), ...
-country_levels <- sort(unique(df_final_country_complete$country))
-country_labels <- paste0(letters[2:(length(country_levels)+1)], ") ", country_levels)
-names(country_labels) <- country_levels
-
+# --- Country plot ---
 g_country <- ggplot(df_final_country_complete, aes(x = month_f, y = proportion, fill = pango_lineage_adj)) +
   geom_col() +
   facet_wrap(~country, ncol = 4, scales = "free_x",
              labeller = labeller(country = country_labels)) +
-  scale_fill_manual(values = palette_colors, name = "Lineages") +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 1), breaks = seq(0, 1, 0.2), limits = c(0, 1)) +
-  theme_minimal(base_family = "Arial") +
+  scale_fill_manual(
+    values = palette_colors,
+    name = "SARS-CoV-2 lineages\n(n > 35 sequences per month;\nothers grouped as 'Others')"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     breaks = seq(0, 1, 0.2), limits = c(0, 1)) +
+  theme_minimal(base_family = "Arial", base_size = 14) +
   theme(
     axis.text.x = element_text(angle = 90, vjust = 0.3, hjust = 1, size = 9),
     axis.text.y = element_text(size = 9),
+    axis.title.x = element_text(size = 19, face = "bold"),
+    axis.title.y = element_text(size = 19, face = "bold"),
     axis.title = element_text(size = 12),
-    strip.text = element_text(size = 11, face = "bold"),
+    strip.text = element_text(size = 16, face = "bold"),
     legend.position = "bottom",
     legend.text = element_text(size = 10),
     legend.title = element_text(size = 12),
-    legend.key.size = unit(0.6, "cm"),
-    plot.margin = margin(t=10, r=10, b=10, l=10)
+    legend.key.size = unit(0.7, "cm")
   ) +
-  guides(fill = guide_legend(ncol = 8, byrow = TRUE)) +
+  guides(fill = guide_legend(ncol = 12, byrow = TRUE)) +
   labs(
     x = "Months",
-    y = "Relative Frequency"
+    y = "Relative Frequency",
+    caption = "Relative frequencies were normalized to sum to 1 within each month and country."
   )
 
 # Combine and save
@@ -428,6 +418,7 @@ final_plot <- g_general / g_country + patchwork::plot_layout(heights = c(2, 3))
 
 ggsave(filename = file.path(add_path, "Figure_3.tiff"), plot = final_plot, width = 16, height = 14, dpi = 300)
 ggsave(filename = file.path(add_path, "Figure_3.png"), plot = final_plot, width = 16, height = 14, dpi = 300)
+
 print(final_plot)
 ```
 ## Create Figure 5. Temporal dynamics of SARS-CoV-2 lineage proportions with COVID-19 statistical curves in Central America and the Dominican Republic.
@@ -489,14 +480,14 @@ df_plot <- df_prop %>%
   left_join(df_muertes, by = "Month") %>%
   left_join(df_casos, by = "Month")
 
-# Colors
+# Colores
 base_colors <- c("lightgrey", "#117864", "#1d6996", "#e15759", "#edad08", "#9c755f", "#5f4690")
 color_generator <- colorRampPalette(base_colors)
 num_lineages_plot <- length(unique(df_plot$linaje))
 plot_colors_fig5 <- color_generator(num_lineages_plot)
 names(plot_colors_fig5) <- unique(df_plot$linaje)
 
-# Total deaths
+# Gráfico muertes
 grafico_muertes <- ggplot(df_plot, aes(x = Month)) +
   geom_area(aes(y = prop, fill = linaje), position = "stack", alpha = 0.7, color = "black", size = 0.1) +
   geom_line(aes(y = total_deaths / max(total_deaths, na.rm = TRUE), group = 1),
@@ -507,13 +498,17 @@ grafico_muertes <- ggplot(df_plot, aes(x = Month)) +
   ) +
   scale_fill_manual(values = plot_colors_fig5, name = "Lineage") +
   labs(title = "Evolution of lineage proportion with death curve", x = "Year") +
-  theme_minimal(base_family = "Arial") +
+  theme_minimal(base_family = "Arial", base_size = 14) +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    legend.position = "bottom"
-  )
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 14),
+    axis.text.y = element_text(size = 14),
+    axis.title.x = element_text(size = 16, face = "bold"),
+    axis.title.y = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 16),
+  ) +
+  guides(fill = "none")
 
-# Total cases
+# Gráfico casos
 grafico_casos <- ggplot(df_plot, aes(x = Month)) +
   geom_area(aes(y = prop, fill = linaje), position = "stack", alpha = 0.7, color = "black", size = 0.1) +
   geom_line(aes(y = total_cases / max(total_cases, na.rm = TRUE), group = 1),
@@ -522,25 +517,33 @@ grafico_casos <- ggplot(df_plot, aes(x = Month)) +
     name = "Lineage proportion",
     sec.axis = sec_axis(~ . * max(df_casos$total_cases, na.rm = TRUE), name = "Total cases", labels = comma)
   ) +
-  scale_fill_manual(values = plot_colors_fig5, name = "Lineage") +
+  scale_fill_manual(values = plot_colors_fig5, 
+    name = "SARS-CoV-2 \nlineages (n > 35 \nsequences per \nmonth; others \ngrouped as \n'Others')"
+  ) +
   labs(title = "Evolution of lineage proportion with case curve", x = "Year") +
-  theme_minimal(base_family = "Arial") +
+  theme_minimal(base_family = "Arial", base_size = 14) +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    legend.position = "bottom"
-  )
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 14),
+    axis.text.y = element_text(size = 14),
+    axis.title.x = element_text(size = 16, face = "bold"),
+    axis.title.y = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 16),
+    legend.position = "bottom",
+    legend.key.size = unit(0.6, "cm")
+  ) +
+  guides(fill = guide_legend(ncol = 9, byrow = TRUE)) 
 
-# Use patchwork for combind legends
+# Usar patchwork para combinar con leyenda debajo
 final_plot <- grafico_muertes / grafico_casos + 
   plot_layout(guides = "collect") & 
   theme(legend.position = 'bottom')
 
+# Mostrar
 print(final_plot)
 
-# Save
+# Guardar
 ggsave("/cloud/project/Figure_5.tiff", plot = final_plot, width = 12, height = 10.5, dpi = 300, units = "in")
 ggsave("/cloud/project/Figure_5.png", plot = final_plot, width = 12, height = 10.5, dpi = 300, units = "in")
-
 
 ```
 ## Create Complementary Figure 1. Individual SARS-CoV-2 sequences obtained by country in Central America and Do-minican Republic from February 2020 to January 2023. (30, 50, 100)
